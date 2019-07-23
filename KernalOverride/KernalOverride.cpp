@@ -1,28 +1,29 @@
-//#define DEBUG
 #define WIN32_LEAN_AND_MEAN
 #define _SRT_SECURE_NO_WARNINGS
+#include "../KernalSharedData/SharedData.h"
+#include "../KernalSharedData/SharedData.cpp"
+
+#include <iostream>
+
+#include <ctime>
+#include <string>
 
 #include <windows.h>
+
 #include <winsock2.h>
+
 #include <ws2tcpip.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <iostream>
-#include <string>
+
 
 // Need to link with Ws2_32.lib, Mswsock.lib, and Advapi32.lib
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
 
-
-#define DEFAULT_BUFLEN 512
-#define DEFAULT_PORT "27015"
-
 WSADATA wsaData;
 SOCKET ConnectSocket = INVALID_SOCKET;
-struct addrinfo *result = NULL,
-                *ptr = NULL,
+struct addrinfo *result = nullptr,
+                *ptr = nullptr,
                 hints;
 const char* sendbuf = "this is a test";
 char recvbuf[DEFAULT_BUFLEN];
@@ -32,40 +33,18 @@ int recvbuflen = DEFAULT_BUFLEN;
 
 #pragma region SendReseve
 
+int id = 0;
+
 void Send(const char message[])
 {
-	iSendResult = send(ConnectSocket, message, (int)strlen(message), 0);
-	if (iSendResult == SOCKET_ERROR)
-	{
-		printf("send failed with error: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-		std::exit(-1); // or some other error code
-	}
-#ifdef DEBUG
-	std::cout << iSendResult << " Bytes |   sent   | " << message << std::endl;
-#endif
+	Send_l(message, id, ConnectSocket, iSendResult);
 }
 
 void Reseve()
 {
-	std::fill_n(recvbuf, recvbuflen, 0);
-	iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-
-	if (iResult == 0)
-	{
-		printf("Connection closing...\n");
-	}
-	else if (iResult < 0)
-	{
-		printf("recv failed with error: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-		std::exit(-1); // or some other error code
-	}
-#ifdef DEBUG
-	std::cout << iResult << " Bytes | received | " << recvbuf << std::endl;
-#endif
+	const auto res = Reseve_l(id, ConnectSocket, iSendResult, iResult, recvbuflen, recvbuf);
+	// ReSharper disable once CppDeprecatedEntity
+	strcpy(recvbuf, res);
 }
 
 #pragma endregion
@@ -115,20 +94,20 @@ void Resolve_server(const char* address)
 void Attempt_connect()
 {
 	// Attempt to connect to an address until one succeeds
-	for (ptr = result; ptr != NULL; ptr = ptr->ai_next)
+	for (ptr = result; ptr != nullptr; ptr = ptr->ai_next)
 	{
 		// Create a SOCKET for connecting to server
 		ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype,
 		                       ptr->ai_protocol);
 		if (ConnectSocket == INVALID_SOCKET)
 		{
-			printf("socket failed with error: %ld\n", WSAGetLastError());
+			printf("socket failed with error: %d\n", WSAGetLastError());
 			WSACleanup();
 			std::exit(-1); // or some other error code
 		}
 
 		// Connect to server.
-		iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
+		iResult = connect(ConnectSocket, ptr->ai_addr, static_cast<int>(ptr->ai_addrlen));
 		if (iResult == SOCKET_ERROR)
 		{
 			closesocket(ConnectSocket);
@@ -172,22 +151,11 @@ void Shutdown_connection()
 
 using namespace std;
 
-char* StrToChar(const string str)
-{
-	char* finalstr = new char[str.length() + 1];
 
-#pragma warning(disable : 4996)
-	strcpy(finalstr, str.c_str());
-#pragma warning(restore : 4996)
-	return finalstr;
-}
+DWORD procID = NULL;
+HWND hwnd = nullptr;
 
-#define HANDLE_S "HANDLE:"
-#define HANDLE_L 7
-#define ADDRESS_S "ADDRESS:"
-#define ADDRESS_L 8
-
-int __cdecl main(int argc, char** argv)
+int __cdecl main(int /*argc*/, char** /*argv*/)
 {
 	system("cls");
 
@@ -200,31 +168,46 @@ int __cdecl main(int argc, char** argv)
 
 	Attempt_connect();
 
-	// Send an initial buffer
-	Send(sendbuf);
-	Reseve();
-	cout << recvbuf << endl;
+	//// Send an initial buffer
+	//Send(sendbuf);
+	//Reseve();
+	//cout << recvbuf << endl;
 	// Receive until the peer closes the connection
 	do
 	{
-		cout << "finding HWND ... -> 0x";
-		HWND hwnd = FindWindowA(nullptr, LPCSTR("*Unbenannt - Editor"));
-		cout << hex << hwnd << endl;
+		Send(StrToChar(string(ONLYDATA_S) + "1"));
+		Reseve();
+		
+		Sleep_C();
 
-		cout << "Get process ID ... -> 0x";
-		DWORD procID;
-		GetWindowThreadProcessId(hwnd, &procID);
-		cout << hex << procID << endl;
+		cout << "sending Window Name..." << endl;
+		Send(StrToChar(string(FIND_WINDOW_S) + "*Unbenannt - Editor"));
+		Reseve();
+		cout << "Server replied: " << recvbuf << endl;
+		hwnd = HWND(bufferToInt(recvbuf));
 
-		cout << "sending procID ..." << endl;
-		string str1 = HANDLE_S + std::to_string(procID);
+		Sleep_C();
+
+		cout << "sending GetProcID..." << endl;
+		string str1 = GET_WINDOW_THREAD_PROCESS_ID_S;
 		Send(StrToChar(str1));
 		Reseve();
 		cout << "Server replied: " << recvbuf << endl;
+		procID = DWORD(bufferToInt(recvbuf));
 
-		cout << "Sending Address ..." << endl;
-		string str2 = ADDRESS_S + std::to_string(DWORD(0x633AFC));
+		Sleep_C();
+
+		cout << "sending procID..." << endl;
+		string str2 = HANDLE_S + std::to_string(procID);
 		Send(StrToChar(str2));
+		Reseve();
+		cout << "Server replied: " << recvbuf << endl;
+
+		Sleep_C();
+
+		cout << "Sending Address..." << endl;
+		string str3 = ADDRESS_S + std::to_string(DWORD(0x7FFF21B81580));
+		Send(StrToChar(str3));
 		Reseve();
 		cout << "Server replied: " << recvbuf << endl;
 
@@ -253,7 +236,7 @@ void dump_notepad_text()
 		if (nullptr != hwndEdit)
 		{
 			std::cout << "- get text length" << std::endl;
-			int textLen = (int)SendMessage(hwndEdit, WM_GETTEXTLENGTH, 0, 0);
+			int textLen = static_cast<int>(SendMessage(hwndEdit, WM_GETTEXTLENGTH, 0, 0));
 
 			if (0 < textLen)
 			{
@@ -270,9 +253,13 @@ void dump_notepad_text()
 					if (int(buffer) != 0)
 					{
 						if (buffer == '\n')
+						{
 							std::cout << std::endl << str;
+						}
 						else
+						{
 							std::cout << buffer;
+						}
 					}
 				}
 				std::cout << std::endl << "[end text]" << std::endl;

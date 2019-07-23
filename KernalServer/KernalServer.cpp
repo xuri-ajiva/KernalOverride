@@ -1,15 +1,15 @@
 //#define DEBUG
 #undef UNICODE
+#include "../KernalSharedData/SharedData.h"
+#include "../KernalSharedData/SharedData.cpp"
 
 #define WIN32_LEAN_AND_MEAN
 
 #include "KernalServer.h"
 
 #include <array>
-
+#include <ctime>
 #include <iostream>
-
-#include <stdio.h>
 
 #include <cstdlib>
 #include <windows.h>
@@ -23,9 +23,6 @@
 // Need to link with Ws2_32.lib
 #pragma comment (lib, "Ws2_32.lib")
 // #pragma comment (lib, "Mswsock.lib")
-
-#define DEFAULT_BUFLEN 512
-#define DEFAULT_PORT "27015"
 
 WSADATA wsaData;
 int iResult;
@@ -42,40 +39,18 @@ int recvbuflen = DEFAULT_BUFLEN;
 
 #pragma region SendReseve
 
+int id = 0;
+
 void Send(const char message[])
 {
-	iSendResult = send(ConnectSocket, message, (int)strlen(message), 0);
-	if (iSendResult == SOCKET_ERROR)
-	{
-		printf("send failed with error: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-		std::exit(-1); // or some other error code
-	}
-#ifdef DEBUG
-	std::cout << iSendResult << " Bytes |   sent   | " << message << std::endl;
-#endif
+	Send_l(message, id, ConnectSocket, iSendResult);
 }
 
 void Reseve()
 {
-	std::fill_n(recvbuf, recvbuflen, 0);
-	iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-
-	if (iResult == 0)
-	{
-		printf("Connection closing...\n");
-	}
-	else if (iResult < 0)
-	{
-		printf("recv failed with error: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-		std::exit(-1); // or some other error code
-	}
-#ifdef DEBUG
-	std::cout << iResult << " Bytes | received | " << recvbuf << std::endl;
-#endif
+	const auto res = Reseve_l(id, ConnectSocket, iSendResult, iResult, recvbuflen, recvbuf);
+	// ReSharper disable once CppDeprecatedEntity
+	strcpy(recvbuf, res);
 }
 
 #pragma endregion
@@ -182,27 +157,14 @@ void Shutdown_connection()
 
 #pragma endregion
 
-
-#define HANDLE_S "HANDLE:"
-#define HANDLE_L 7
-#define ADDRESS_S "ADDRESS:"
-#define ADDRESS_L 8
-
 DWORD procID;
 DWORD toReed;
 HANDLE handle;
+HWND hwnd;
+
+BOOLEAN ONLYDATA = true;
 
 using namespace std;
-
-char* StrToChar(const string str)
-{
-	char* finalstr = new char[str.length() + 1];
-
-#pragma warning(disable : 4996)
-	strcpy(finalstr, str.c_str());
-#pragma warning(restore : 4996)
-	return finalstr;
-}
 
 int __cdecl main()
 {
@@ -221,67 +183,131 @@ int __cdecl main()
 	// Receive until the peer shuts down the connection
 	do
 	{
-		while (true)
+		Reseve();
+		string s = std::string(recvbuf);
+
+		if (s.substr(0, ONLYDATA_L) == ONLYDATA_S)
 		{
-			Reseve();
-			string s = std::string(recvbuf);
-			if (s.substr(0, HANDLE_L) != HANDLE_S)
-			{
-				Send("Pleas Send Handle!");
-				continue;
-			}
+			ONLYDATA = s.substr(ONLYDATA_L, 1) == "1";
+
+			Sleep(DWORD(30));
+
+			if (ONLYDATA)
+				Send(StrToChar("1"));
 			else
+				Send(StrToChar("Set ONLYDATA to 0"));
+		}
+		else if (s.substr(0, HANDLE_L) == HANDLE_S)
+		{
+			procID = DWORD(atoi(s.substr(HANDLE_L).c_str()));
+			cout << "Opening ProcessID " << procID << std::dec <<
+				" with \"PROCESS_ALL_ACCESS\" ..." << endl;
+
+			handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, procID);
+
+			Sleep(DWORD(30));
+
+			if (handle == nullptr)
 			{
-				procID = DWORD(atoi(s.substr(HANDLE_L).c_str()));
-				cout << "Opening ProcessID 0x" << hex << procID << std::dec <<
-					" with \"PROCESS_ALL_ACCESS\" ..." << endl;
-
-				handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, procID);
-
-				if (handle == nullptr)
-				{
-					cout << "Process nicht gefunden!" << endl;
+				cout << "Process nicht gefunden!" << endl;
+				if (ONLYDATA)
+					Send(ERRORVAULE);
+				else
 					Send("Process nicht gefunden!");
-					Sleep(3000);
-					Shutdown_connection();
-				}
-				cout << "Process Handle: " + to_string(int(handle)) << endl;
-				Send(StrToChar("Process Handle: " + to_string(int(handle))));
-				break;
-			}
-		}
-		while (true)
-		{
-			Reseve();
-			string s = std::string(recvbuf);
-			if (s.substr(0, ADDRESS_L) != ADDRESS_S)
-			{
-				Send("Send Address to read");
-				continue;
 			}
 			else
 			{
-				toReed = DWORD(atoi(s.substr(ADDRESS_L).c_str()));
-				cout << "Reading in Process 0x" << hex << procID << std::dec << " of process handle " << hex <<
-					handle << dec << " at 0x" <<hex << toReed << " ..." << endl;
-
-				float y;
-				ReadProcessMemory(handle, LPVOID(toReed), &y, sizeof(y), 0);
-
-				cout << "Read at 0x" << hex << toReed << dec << " value: " << y << endl;
-				Send(StrToChar(("Read at 0x" + to_string(int(toReed))) + " value:" + to_string(y)));
-				break;
+				cout << "Process Handle: " + to_string(int(handle)) << endl;
+				if (ONLYDATA)
+					Send(StrToChar(to_string(int(handle))));
+				else
+					Send(StrToChar("Process Handle: " + to_string(int(handle))));
 			}
 		}
+		else if (s.substr(0, ADDRESS_L) == ADDRESS_S)
+		{
+			toReed = DWORD(atoi(s.substr(ADDRESS_L).c_str()));
+			cout << "Reading in Process " << procID << " at " << toReed << " ..." << endl;
 
-		//Reseve();
+			float y;
+			ReadProcessMemory(handle, LPVOID(toReed), &y, sizeof(y), 0);
 
+			Sleep(DWORD(30));
 
-		system("pause");
+			cout << "Read at " << toReed << " value: " << y << endl;
+			if (ONLYDATA)
+				Send(StrToChar(to_string(y)));
+			else
+				Send(StrToChar(("Read at " + to_string(int(toReed))) + " value:" + to_string(y)));
+		}
+		else if (s.substr(0, FIND_WINDOW_L) == FIND_WINDOW_S)
+		{
+			hwnd = FindWindowA(nullptr, LPCSTR(StrToChar(s.substr(FIND_WINDOW_L))));
+
+			Sleep(DWORD(30));
+
+			if (hwnd == nullptr)
+			{
+				cout << "Window Dose Not Exist" << endl;
+				if (ONLYDATA)
+					Send(ERRORVAULE);
+				else
+					Send("Window Dose Not Exist");
+			}
+			else
+			{
+				cout << "FindWindowA reviews hWnd (rep): " << hwnd << endl;
+				if (ONLYDATA)
+					Send(StrToChar(to_string(int(1))));
+				else
+					Send(StrToChar("FindWindowA reviews hWnd: " + int(GlobalHandle(hwnd))));
+			}
+		}
+		else if (s.substr(0, GET_WINDOW_THREAD_PROCESS_ID_L) == GET_WINDOW_THREAD_PROCESS_ID_S)
+		{
+			//if (HWND(StrToChar(s.substr(GET_WINDOW_THREAD_PROCESS_ID_L))) == hwnd)
+			//{
+			GetWindowThreadProcessId(hwnd, &procID);
+
+			Sleep(DWORD(30));
+
+			if (procID == NULL)
+			{
+				cout << "Process Id Dose Not Exist!" << endl;
+				if (ONLYDATA)
+					Send(ERRORVAULE);
+				else
+					Send(StrToChar("Process Id Dose Not Exist!"));
+			}
+			else
+			{
+				cout << "hWnd " << hwnd << " resolved to Process id " << procID << endl;
+				if (ONLYDATA)
+					Send(StrToChar(to_string(int(procID))));
+				else
+					Send(StrToChar(
+						"hWnd " + to_string(int(hwnd)) + " resolved to Process id " + to_string(int(procID))));
+			}
+			//}
+			//else
+			//{
+			//	cout << "hWnd dose not march!" << endl;
+			//	if (ONLYDATA)
+			//		Send(ERRORVAULE);
+			//	else
+			//		Send(StrToChar("hWnd dose not march!"));
+			//}
+		}
+		else
+		{
+			Sleep(DWORD(30));
+
+			Send(StrToChar("Send known Command ->[" + s + "]"));
+		}
 	}
 	while (iResult > 0);
 
 	Shutdown_connection();
-
+	system("pause");
 	return 0;
 }

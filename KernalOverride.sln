@@ -4,8 +4,16 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.29102.190
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KernalOverride", "KernalOverride\KernalOverride.vcxproj", "{C1F968FD-AF2E-487A-9043-B7005F406FBF}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718} = {D58DCBEB-C52F-4A2B-BA80-C352A2B89718}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KernalServer", "KernalServer\KernalServer.vcxproj", "{DBA769FC-0679-4063-A5BD-85417A67248E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718} = {D58DCBEB-C52F-4A2B-BA80-C352A2B89718}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KernalSharedData", "KernalSharedData\KernalSharedData.vcxproj", "{D58DCBEB-C52F-4A2B-BA80-C352A2B89718}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,6 +39,14 @@ Global
 		{DBA769FC-0679-4063-A5BD-85417A67248E}.Release|x64.Build.0 = Release|x64
 		{DBA769FC-0679-4063-A5BD-85417A67248E}.Release|x86.ActiveCfg = Release|Win32
 		{DBA769FC-0679-4063-A5BD-85417A67248E}.Release|x86.Build.0 = Release|Win32
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718}.Debug|x64.ActiveCfg = Debug|x64
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718}.Debug|x64.Build.0 = Debug|x64
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718}.Debug|x86.ActiveCfg = Debug|Win32
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718}.Debug|x86.Build.0 = Debug|Win32
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718}.Release|x64.ActiveCfg = Release|x64
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718}.Release|x64.Build.0 = Release|x64
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718}.Release|x86.ActiveCfg = Release|Win32
+		{D58DCBEB-C52F-4A2B-BA80-C352A2B89718}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
