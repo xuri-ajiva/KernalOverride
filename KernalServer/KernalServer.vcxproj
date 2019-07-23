@@ -20,9 +20,9 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
-    <ProjectGuid>{C1F968FD-AF2E-487A-9043-B7005F406FBF}</ProjectGuid>
+    <ProjectGuid>{DBA769FC-0679-4063-A5BD-85417A67248E}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>KernalOverride</RootNamespace>
+    <RootNamespace>KernalServer</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -151,10 +151,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="KernalOverride.cpp" />
+    <ClCompile Include="KernalServer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="KernalOverride.h" />
+    <ClInclude Include="KernalServer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
